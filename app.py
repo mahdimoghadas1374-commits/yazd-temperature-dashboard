@@ -1,36 +1,67 @@
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
+import plotly.express as px
 
-st.title("Yazd Temperature Dashboard")
+st.set_page_config(page_title="Yazd Climate Dashboard", layout="wide")
 
+st.title("🌡️ Yazd Province Temperature Dashboard")
+
+# ---------- Load Data ----------
 df = pd.read_csv("yazd Counties_temperature.csv")
 
-# فقط پارامتر دما
 df = df[df["PARAMETER"] == "T2M"]
 
-# انتخاب شهرستان
-county = st.selectbox("Select County", df["County"].unique())
+months = ["JAN","FEB","MAR","APR","MAY","JUN",
+          "JUL","AUG","SEP","OCT","NOV","DEC"]
 
-df_county = df[df["County"] == county]
+# ---------- Sidebar ----------
+st.sidebar.header("Filters")
 
-# تبدیل داده ماهانه به long format
-months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
+county = st.sidebar.selectbox("Select County", df["County"].unique())
 
-df_long = df_county.melt(
+year = st.sidebar.selectbox("Select Year", sorted(df["YEAR"].unique()))
+
+# ---------- Filter Data ----------
+df_filtered = df[(df["County"] == county) & (df["YEAR"] == year)]
+
+df_long = df_filtered.melt(
     id_vars=["YEAR"],
     value_vars=months,
     var_name="Month",
     value_name="Temperature"
 )
 
-# رسم نمودار
-fig, ax = plt.subplots()
+# مرتب سازی ماه‌ها
+month_order = months
+df_long["Month"] = pd.Categorical(df_long["Month"], categories=month_order, ordered=True)
+df_long = df_long.sort_values("Month")
 
-ax.plot(df_long["Temperature"])
-ax.set_title(f"Temperature Trend - {county}")
+# ---------- Metrics ----------
+col1, col2, col3 = st.columns(3)
 
-st.pyplot(fig)
+col1.metric("Average Temp", round(df_long["Temperature"].mean(),2))
+col2.metric("Max Temp", round(df_long["Temperature"].max(),2))
+col3.metric("Min Temp", round(df_long["Temperature"].min(),2))
 
-# نمایش جدول
-st.dataframe(df_long)
+st.divider()
+
+# ---------- Chart ----------
+fig = px.line(
+    df_long,
+    x="Month",
+    y="Temperature",
+    markers=True,
+    title=f"Monthly Temperature Trend — {county} ({year})",
+)
+
+fig.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Temperature (°C)",
+    template="plotly_dark"
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# ---------- Table ----------
+st.subheader("📊 Data Table")
+st.dataframe(df_long, use_container_width=True)
