@@ -16,6 +16,7 @@ df_long = df.melt(
     var_name="Month",
     value_name="Temperature"
 )
+
 month_map = {m:i+1 for i,m in enumerate(months)}
 df_long["Month_Num"] = df_long["Month"].map(month_map)
 df_long["Date"] = pd.to_datetime(
@@ -25,7 +26,6 @@ df_long["Temperature"] = pd.to_numeric(df_long["Temperature"], errors="coerce")
 df_long = df_long.dropna(subset=["Temperature"])
 
 # ---------------- STANDARDIZE CITY NAME ----------------
-# همه اسم‌ها فارسی
 city_map = {
     "Yazd":"یزد",
     "Ardakan":"اردکان",
@@ -58,6 +58,7 @@ for i in range(0, len(counties), cols_per_row):
     for j, c in enumerate(counties[i:i+cols_per_row]):
         if cols[j].button(c):
             st.session_state.selected_county = c
+
 county = st.session_state.selected_county
 
 # ---------------- FILTER DATA ----------------
@@ -102,7 +103,8 @@ fig_line = px.line(
     y='Temperature',
     labels={"Temperature":"دما (°C)", "Date":"تاریخ"},
     title=f"روند دمای شهرستان {county}",
-    color_discrete_sequence=["orange"]
+    color_discrete_sequence=["orange"],
+    line_shape='spline'  # خطوط smooth و خمیده
 )
 fig_line.update_traces(mode='lines+markers')
 fig_line.update_layout(height=400)
@@ -133,4 +135,4 @@ fig_box = px.box(
 st.plotly_chart(fig_box, use_container_width=True)
 
 # ---------------- FOOTER ----------------
-st.markdown("---\n📊 منبع داده: NASA POWER Dataset  \n🎓 پروژه تحلیل اقلیم استان یزد")
+st.markdown("---\n📊 منبع داده: NASA POWER Dataset \n🎓 پروژه تحلیل اقلیم استان یزد")
