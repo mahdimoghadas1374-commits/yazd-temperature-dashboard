@@ -59,6 +59,7 @@ counties = list(city_map.values())
 if "selected_county" not in st.session_state:
     st.session_state.selected_county = "یزد"
 
+# ستون‌های انتخاب شهرستان با ریسپانسیو
 cols_per_row = 3
 for i in range(0, len(counties), cols_per_row):
     cols = st.sidebar.columns(cols_per_row)
@@ -75,20 +76,24 @@ if show_data:
     st.dataframe(
         df_long.sort_values(["YEAR","Month_Num","County"]).reset_index(drop=True),
         use_container_width=True,
-        height=700
+        height=600
     )
 else:
     filtered = df_long[(df_long["County"]==county) &
                        (df_long["YEAR"]>=year_min) &
                        (df_long["YEAR"]<=year_max)].copy().sort_values("Date")
 
-    # ---------------- METRICS ----------------
     avg_temp = filtered["Temperature"].mean()
     max_temp = filtered["Temperature"].max()
     min_temp = filtered["Temperature"].min()
 
+    # ---------------- METRICS ----------------
     st.subheader(f"📊 شاخص‌های دمای شهرستان {county}")
-    col1, col2, col3 = st.columns(3)
+    if st.columns(1)[0].width < 500:  # موبایل: ستون عمودی
+        col1, col2, col3 = st.columns(1)
+    else:
+        col1, col2, col3 = st.columns(3)
+
     def gauge(value, title):
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
@@ -98,28 +103,24 @@ else:
         ))
         fig.update_layout(height=280)
         return fig
+
     col1.plotly_chart(gauge(avg_temp, "میانگین"), use_container_width=True)
     col2.plotly_chart(gauge(max_temp, "حداکثر"), use_container_width=True)
     col3.plotly_chart(gauge(min_temp, "حداقل"), use_container_width=True)
 
-    # ---------------- SELECT BOX FOR TREND ----------------
+    # ---------------- SELECT BOX ----------------
     st.markdown("### 📊 انتخاب شاخص برای نمودار روند")
     selected_indicator = st.selectbox("شاخص", ["میانگین", "حداکثر", "حداقل"], index=0)
 
+    # ---------------- TREND CHART ----------------
     fig_line = go.Figure()
     years_count = filtered["YEAR"].nunique()
 
-    if years_count == 1:
+    if years_count == 1:  # ماهانه
         stats = filtered.groupby("Month_Num")["Temperature"].agg(['mean','max','min']).reset_index()
-        if selected_indicator=="میانگین":
-            y_values = stats['mean']
-            color = 'gold'
-        elif selected_indicator=="حداکثر":
-            y_values = stats['max']
-            color = 'red'
-        else:
-            y_values = stats['min']
-            color = 'blue'
+        if selected_indicator=="میانگین": y_values, color = stats['mean'], 'gold'
+        elif selected_indicator=="حداکثر": y_values, color = stats['max'], 'red'
+        else: y_values, color = stats['min'], 'blue'
 
         fig_line.add_trace(go.Scatter(
             x=stats["Month_Num"], y=y_values,
@@ -128,28 +129,11 @@ else:
             marker=dict(size=8)
         ))
 
-        y_min, y_max = y_values.min()-0.5, y_values.max()+0.5
-        dtick = 0.2 if y_max-y_min<5 else None
-
-        fig_line.update_layout(
-            height=420,
-            title=f"روند ماهانه دما — {county} ({selected_indicator})",
-            xaxis_title="ماه",
-            yaxis_title="دما",
-            xaxis=dict(tickmode="array", tickvals=list(range(1,13)), ticktext=months),
-            yaxis=dict(range=[y_min,y_max], dtick=dtick),
-        )
-    else:
+    else:  # سالانه
         stats = filtered.groupby("YEAR")["Temperature"].agg(['mean','max','min']).reset_index()
-        if selected_indicator=="میانگین":
-            y_values = stats['mean']
-            color = 'gold'
-        elif selected_indicator=="حداکثر":
-            y_values = stats['max']
-            color = 'red'
-        else:
-            y_values = stats['min']
-            color = 'blue'
+        if selected_indicator=="میانگین": y_values, color = stats['mean'], 'gold'
+        elif selected_indicator=="حداکثر": y_values, color = stats['max'], 'red'
+        else: y_values, color = stats['min'], 'blue'
 
         fig_line.add_trace(go.Scatter(
             x=stats["YEAR"], y=y_values,
@@ -158,16 +142,19 @@ else:
             marker=dict(size=8)
         ))
 
-        y_min, y_max = y_values.min()-0.5, y_values.max()+0.5
-        dtick = 0.2 if y_max-y_min<5 else None
+    # محور Y روی بازه داده‌ها و رزولوشن مناسب
+    y_min, y_max = y_values.min()-0.5, y_values.max()+0.5
+    dtick = 0.2 if y_max-y_min<5 else None
 
-        fig_line.update_layout(
-            height=420,
-            title=f"روند سالانه دما — {county} ({selected_indicator})",
-            xaxis_title="سال",
-            yaxis_title="دما",
-            yaxis=dict(range=[y_min,y_max], dtick=dtick),
-        )
+    fig_line.update_layout(
+        height=420,
+        title=f"روند دما — {county} ({selected_indicator})",
+        xaxis_title="ماه" if years_count==1 else "سال",
+        yaxis_title="دما",
+        xaxis=dict(tickmode="array", tickvals=list(range(1,13)), ticktext=months) if years_count==1 else None,
+        yaxis=dict(range=[y_min, y_max], dtick=dtick),
+        margin=dict(t=50, b=50, l=50, r=50)
+    )
 
     st.plotly_chart(fig_line, use_container_width=True)
 
