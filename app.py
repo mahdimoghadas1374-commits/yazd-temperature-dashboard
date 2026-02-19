@@ -4,7 +4,15 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 st.set_page_config(layout="wide", page_title="🌡️ داشبورد دمای استان یزد")
-st.title("🌡️ داشبورد دمای شهرستان‌های استان یزد")
+
+# ---------------- INTRO ----------------
+st.markdown("""
+# 🌡️ خوش آمدید به داشبورد دمای استان یزد
+در این داشبورد می‌توانید روند دما، شاخص‌ها و توزیع دمای شهرستان‌های استان یزد را مشاهده کنید.
+از سایدبار می‌توانید شهرستان و بازه سال مورد نظر خود را انتخاب کنید.
+همچنین می‌توانید اطلاعات اولیه ماهانه را به صورت جدول کامل مشاهده کنید.
+---
+""")
 
 # ---------------- LOAD DATA ----------------
 df = pd.read_csv("yazd Counties_temperature.csv")
@@ -41,6 +49,8 @@ df_long["County"] = df_long["County"].map(city_map)
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.markdown("## 🎛️ تنظیمات داشبورد")
+
+# انتخاب بازه سال
 year_min, year_max = st.sidebar.slider(
     "📅 بازه سال",
     int(df_long["YEAR"].min()),
@@ -48,6 +58,7 @@ year_min, year_max = st.sidebar.slider(
     (2015, 2024)
 )
 
+# انتخاب شهرستان
 counties = list(city_map.values())
 if "selected_county" not in st.session_state:
     st.session_state.selected_county = "یزد"
@@ -61,80 +72,91 @@ for i in range(0, len(counties), cols_per_row):
 
 county = st.session_state.selected_county
 
-# ---------------- FILTER DATA ----------------
-filtered = df_long[
-    (df_long["County"] == county) &
-    (df_long["YEAR"] >= year_min) &
-    (df_long["YEAR"] <= year_max)
-].copy()
-filtered = filtered.sort_values("Date")
+# ---------------- SHOW RAW DATA OPTION ----------------
+show_data = st.sidebar.checkbox("📋 اطلاعات اولیه")
 
-# ---------------- METRICS ----------------
-avg_temp = filtered["Temperature"].mean()
-max_temp = filtered["Temperature"].max()
-min_temp = filtered["Temperature"].min()
+if show_data:
+    st.subheader("📋 جدول اطلاعات اولیه")
+    st.dataframe(
+        df_long.sort_values(["YEAR", "Month_Num", "County"]).reset_index(drop=True),
+        use_container_width=True
+    )
+else:
+    # ---------------- FILTER DATA ----------------
+    filtered = df_long[
+        (df_long["County"] == county) &
+        (df_long["YEAR"] >= year_min) &
+        (df_long["YEAR"] <= year_max)
+    ].copy()
+    filtered = filtered.sort_values("Date")
 
-st.subheader(f"📊 شاخص‌های دمای شهرستان {county}")
-col1, col2, col3 = st.columns(3)
+    # ---------------- METRICS ----------------
+    avg_temp = filtered["Temperature"].mean()
+    max_temp = filtered["Temperature"].max()
+    min_temp = filtered["Temperature"].min()
 
-def gauge(value, title, max_range=50):
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=value,
-        title={'text': title},
-        gauge={'axis': {'range':[0, max(max_range, value+5)]},
-               'bar': {'color':'orange'},
-               'steps':[dict(range=[0, 20], color='lightblue'),
-                        dict(range=[20, 35], color='yellow'),
-                        dict(range=[35, 50], color='red')]}
-    ))
-    fig.update_layout(height=300)
-    return fig
+    st.subheader(f"📊 شاخص‌های دمای شهرستان {county}")
+    col1, col2, col3 = st.columns(3)
 
-col1.plotly_chart(gauge(avg_temp, "میانگین دما (°C)"), use_container_width=True)
-col2.plotly_chart(gauge(max_temp, "حداکثر دما (°C)"), use_container_width=True)
-col3.plotly_chart(gauge(min_temp, "حداقل دما (°C)"), use_container_width=True)
+    def gauge(value, title, max_range=50):
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=value,
+            title={'text': title},
+            gauge={'axis': {'range':[0, max(max_range, value+5)]},
+                   'bar': {'color':'orange'},
+                   'steps':[dict(range=[0, 20], color='lightblue'),
+                            dict(range=[20, 35], color='yellow'),
+                            dict(range=[35, 50], color='red')]}
 
-# ---------------- LINE CHART (میانگین سالانه) ----------------
-st.subheader(f"📈 روند دما در {county} (میانگین سالانه)")
-annual_avg = filtered.groupby("YEAR")["Temperature"].mean().reset_index()
+        ))
+        fig.update_layout(height=300)
+        return fig
 
-fig_line = px.line(
-    annual_avg,
-    x='YEAR',
-    y='Temperature',
-    labels={"Temperature":"میانگین دما (°C)", "YEAR":"سال"},
-    title=f"روند میانگین دمای شهرستان {county} (سالانه)",
-    color_discrete_sequence=["orange"],
-    line_shape='spline'
-)
-fig_line.update_traces(mode='lines+markers')
-fig_line.update_layout(height=400)
-st.plotly_chart(fig_line, use_container_width=True)
+    col1.plotly_chart(gauge(avg_temp, "میانگین دما (°C)"), use_container_width=True)
+    col2.plotly_chart(gauge(max_temp, "حداکثر دما (°C)"), use_container_width=True)
+    col3.plotly_chart(gauge(min_temp, "حداقل دما (°C)"), use_container_width=True)
 
-# ---------------- HISTOGRAM ----------------
-st.subheader("📊 توزیع دما")
-fig_hist = px.histogram(
-    filtered,
-    x="Temperature",
-    nbins=30,
-    template="plotly_white",
-    labels={"Temperature":"دما (°C)"},
-    color_discrete_sequence=["orange"],
-    height=400
-)
-st.plotly_chart(fig_hist, use_container_width=True)
+    # ---------------- LINE CHART (میانگین سالانه) ----------------
+    st.subheader(f"📈 روند دما در {county} (میانگین سالانه)")
+    annual_avg = filtered.groupby("YEAR")["Temperature"].mean().reset_index()
 
-# ---------------- BOX PLOT ----------------
-st.subheader("📊 نمودار جعبه‌ای دما")
-fig_box = px.box(
-    filtered,
-    y="Temperature",
-    template="plotly_white",
-    color_discrete_sequence=["orange"],
-    height=400
-)
-st.plotly_chart(fig_box, use_container_width=True)
+    fig_line = px.line(
+        annual_avg,
+        x='YEAR',
+        y='Temperature',
+        labels={"Temperature":"میانگین دما (°C)", "YEAR":"سال"},
+        title=f"روند میانگین دمای شهرستان {county} (سالانه)",
+        color_discrete_sequence=["orange"],
+        line_shape='spline'
+    )
+    fig_line.update_traces(mode='lines+markers')
+    fig_line.update_layout(height=400)
+    st.plotly_chart(fig_line, use_container_width=True)
+
+    # ---------------- HISTOGRAM ----------------
+    st.subheader("📊 توزیع دما")
+    fig_hist = px.histogram(
+        filtered,
+        x="Temperature",
+        nbins=30,
+        template="plotly_white",
+        labels={"Temperature":"دما (°C)"},
+        color_discrete_sequence=["orange"],
+        height=400
+    )
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+    # ---------------- BOX PLOT ----------------
+    st.subheader("📊 نمودار جعبه‌ای دما")
+    fig_box = px.box(
+        filtered,
+        y="Temperature",
+        template="plotly_white",
+        color_discrete_sequence=["orange"],
+        height=400
+    )
+    st.plotly_chart(fig_box, use_container_width=True)
 
 # ---------------- FOOTER ----------------
 st.markdown("---\n📊 منبع داده: NASA POWER Dataset \n🎓 پروژه تحلیل اقلیم استان یزد")
