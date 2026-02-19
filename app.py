@@ -1,33 +1,36 @@
 import pandas as pd
+import streamlit as st
 import matplotlib.pyplot as plt
 
-# 1) خواندن فایل اکسل / CSV
+st.title("Yazd Temperature Dashboard")
+
 df = pd.read_csv("yazd Counties_temperature.csv")
 
-# 2) نمایش اطلاعات اولیه (برای اطمینان)
-print("Columns:", df.columns)
-print("Counties:", df["County"].unique())
-print("Parameters:", df["PARAMETER"].unique())
+# فقط پارامتر دما
+df = df[df["PARAMETER"] == "T2M"]
 
-# 3) فیلتر استان یزد (فارسی یا انگلیسی)
-df_yazd = df[df["County"].str.contains("Yazd|یزد", na=False)]
+# انتخاب شهرستان
+county = st.selectbox("Select County", df["County"].unique())
 
-# 4) فقط دما (NASA POWER معمولاً T2M است)
-df_yazd = df_yazd[df_yazd["PARAMETER"] == "T2M"]
+df_county = df[df["County"] == county]
 
-# 5) مرتب‌سازی بر اساس سال
-df_yazd = df_yazd.sort_values("YEAR")
+# تبدیل داده ماهانه به long format
+months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
 
-# 6) محاسبه میانگین سالانه (ستون ANN)
-years = df_yazd["YEAR"]
-annual_temp = df_yazd["ANN"]
+df_long = df_county.melt(
+    id_vars=["YEAR"],
+    value_vars=months,
+    var_name="Month",
+    value_name="Temperature"
+)
 
-# 7) رسم نمودار
-plt.figure(figsize=(10,5))
-plt.plot(years, annual_temp, marker="o")
-plt.xlabel("Year")
-plt.ylabel("Annual Mean Temperature (C)")
-plt.title("Yazd Annual Mean Temperature - NASA POWER")
-plt.grid(True)
-plt.tight_layout()
-plt.show()
+# رسم نمودار
+fig, ax = plt.subplots()
+
+ax.plot(df_long["Temperature"])
+ax.set_title(f"Temperature Trend - {county}")
+
+st.pyplot(fig)
+
+# نمایش جدول
+st.dataframe(df_long)
