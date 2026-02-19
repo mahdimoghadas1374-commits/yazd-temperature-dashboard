@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
+import plotly.express as px
+import numpy as np
 
 st.set_page_config(layout="wide", page_title="🌡️ داشبورد دمای استان یزد")
 
@@ -38,29 +39,20 @@ df_long = df.melt(
 
 month_map = {m:i+1 for i,m in enumerate(months)}
 df_long["Month_Num"] = df_long["Month"].map(month_map)
-df_long["Date"] = pd.to_datetime(
-    df_long["YEAR"].astype(str) + "-" + df_long["Month_Num"].astype(str) + "-01"
-)
+df_long["Date"] = pd.to_datetime(df_long["YEAR"].astype(str) + "-" + df_long["Month_Num"].astype(str) + "-01")
 df_long["Temperature"] = pd.to_numeric(df_long["Temperature"], errors="coerce")
 df_long = df_long.dropna(subset=["Temperature"])
 
 # ---------------- CITY MAP ----------------
 city_map = {
-    "Yazd":"یزد",
-    "Ardakan":"اردکان",
-    "Meybod":"میبد",
-    "Taft":"تفت",
-    "Mehriz":"مهریز",
-    "Bafgh":"بافق",
-    "Ashkezar":"اشکذر",
-    "Abarkoh":"ابرکوه",
-    "Khatam":"خاتم"
+    "Yazd":"یزد", "Ardakan":"اردکان", "Meybod":"میبد",
+    "Taft":"تفت", "Mehriz":"مهریز", "Bafgh":"بافق",
+    "Ashkezar":"اشکذر", "Abarkoh":"ابرکوه", "Khatam":"خاتم"
 }
 df_long["County"] = df_long["County"].map(city_map)
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.markdown("## 🎛️ تنظیمات داشبورد")
-
 year_min, year_max = st.sidebar.slider(
     "📅 بازه سال",
     int(df_long["YEAR"].min()),
@@ -80,7 +72,6 @@ for i in range(0, len(counties), cols_per_row):
             st.session_state.selected_county = c
 
 county = st.session_state.selected_county
-
 show_data = st.sidebar.checkbox("📋 اطلاعات اولیه")
 
 # ---------------- RAW TABLE ----------------
@@ -89,18 +80,15 @@ if show_data:
     st.dataframe(
         df_long.sort_values(["YEAR","Month_Num","County"]).reset_index(drop=True),
         use_container_width=True,
-        height=700  # حداکثر ارتفاع مناسب صفحه
+        height=700
     )
-
 else:
-    # ---------------- FILTER ----------------
     filtered = df_long[
         (df_long["County"] == county) &
         (df_long["YEAR"] >= year_min) &
         (df_long["YEAR"] <= year_max)
     ].copy().sort_values("Date")
 
-    # ---------------- METRICS ----------------
     avg_temp = filtered["Temperature"].mean()
     max_temp = filtered["Temperature"].max()
     min_temp = filtered["Temperature"].min()
@@ -113,8 +101,7 @@ else:
             mode="gauge+number",
             value=value,
             title={'text': title},
-            gauge={'axis': {'range':[0, 50]},
-                   'bar': {'color':'orange'}}
+            gauge={'axis': {'range':[0, 50]}, 'bar': {'color':'orange'}}
         ))
         fig.update_layout(height=280)
         return fig
@@ -123,43 +110,23 @@ else:
     col2.plotly_chart(gauge(max_temp, "حداکثر"), use_container_width=True)
     col3.plotly_chart(gauge(min_temp, "حداقل"), use_container_width=True)
 
-    # ---------------- SMART TREND CHART ----------------
+    # ---------------- TREND CHART ----------------
     st.subheader("📈 روند دما")
     years_count = filtered["YEAR"].nunique()
-
     fig_line = go.Figure()
+
     if years_count == 1:
         # ماهانه
-        monthly_stats = filtered.groupby("Month_Num")["Temperature"].agg(['mean','max','min']).reset_index()
-        
-        fig_line.add_trace(go.Scatter(
-            x=monthly_stats["Month_Num"],
-            y=monthly_stats["mean"],
-            mode="lines+markers",
-            name="میانگین",
-            line=dict(color="gold", width=3),
-            marker=dict(size=8)
-        ))
-        fig_line.add_trace(go.Scatter(
-            x=monthly_stats["Month_Num"],
-            y=monthly_stats["max"],
-            mode="lines+markers",
-            name="حداکثر",
-            line=dict(color="red", width=3),
-            marker=dict(size=8)
-        ))
-        fig_line.add_trace(go.Scatter(
-            x=monthly_stats["Month_Num"],
-            y=monthly_stats["min"],
-            mode="lines+markers",
-            name="حداقل",
-            line=dict(color="blue", width=3),
-            marker=dict(size=8)
-        ))
+        stats = filtered.groupby("Month_Num")["Temperature"].agg(['mean','max','min']).reset_index()
+        fig_line.add_trace(go.Scatter(x=stats["Month_Num"], y=stats["mean"], mode="lines+markers", name="میانگین", line=dict(color="gold", width=3), marker=dict(size=8)))
+        fig_line.add_trace(go.Scatter(x=stats["Month_Num"], y=stats["max"], mode="lines+markers", name="حداکثر", line=dict(color="red", width=3), marker=dict(size=8)))
+        fig_line.add_trace(go.Scatter(x=stats["Month_Num"], y=stats["min"], mode="lines+markers", name="حداقل", line=dict(color="blue", width=3), marker=dict(size=8)))
 
-        y_min = monthly_stats["min"].min() - 0.5
-        y_max = monthly_stats["max"].max() + 0.5
-        dtick = 0.1  # فاصله برای دید بهتر
+        y_min, y_max = stats[['min','max']].min().min()-0.5, stats[['min','max']].max().max()+0.5
+        # رزولوشن هوشمند
+        y_vals_fine = np.arange(np.floor(y_min), np.ceil(y_max)+0.01, 0.2)
+        y_vals_coarse = np.arange(-10, np.floor(y_min), 10).tolist() + np.arange(np.ceil(y_max)+1, 50, 10).tolist()
+        y_ticks = np.sort(np.concatenate([y_vals_coarse, y_vals_fine]))
 
         fig_line.update_layout(
             height=420,
@@ -167,78 +134,42 @@ else:
             xaxis_title="ماه",
             yaxis_title="دما",
             xaxis=dict(tickmode="array", tickvals=list(range(1,13)), ticktext=months),
-            yaxis=dict(range=[y_min, y_max], dtick=dtick),
+            yaxis=dict(tickvals=y_ticks),
             legend_title_text="📌 توضیح رنگ‌ها",
-            legend=dict(
-                orientation="h",
-                yanchor="top",
-                y=-0.3,
-                xanchor="right",
-                x=1
-            )
+            legend=dict(orientation="h", yanchor="top", y=-0.3, xanchor="right", x=1)
         )
-        
     else:
         # سالانه
-        annual_stats = filtered.groupby("YEAR")["Temperature"].agg(['mean','max','min']).reset_index()
-        
-        fig_line.add_trace(go.Scatter(
-            x=annual_stats["YEAR"],
-            y=annual_stats["mean"],
-            mode="lines+markers",
-            name="میانگین",
-            line=dict(color="gold", width=3),
-            marker=dict(size=8)
-        ))
-        fig_line.add_trace(go.Scatter(
-            x=annual_stats["YEAR"],
-            y=annual_stats["max"],
-            mode="lines+markers",
-            name="حداکثر",
-            line=dict(color="red", width=3),
-            marker=dict(size=8)
-        ))
-        fig_line.add_trace(go.Scatter(
-            x=annual_stats["YEAR"],
-            y=annual_stats["min"],
-            mode="lines+markers",
-            name="حداقل",
-            line=dict(color="blue", width=3),
-            marker=dict(size=8)
-        ))
+        stats = filtered.groupby("YEAR")["Temperature"].agg(['mean','max','min']).reset_index()
+        fig_line.add_trace(go.Scatter(x=stats["YEAR"], y=stats["mean"], mode="lines+markers", name="میانگین", line=dict(color="gold", width=3), marker=dict(size=8)))
+        fig_line.add_trace(go.Scatter(x=stats["YEAR"], y=stats["max"], mode="lines+markers", name="حداکثر", line=dict(color="red", width=3), marker=dict(size=8)))
+        fig_line.add_trace(go.Scatter(x=stats["YEAR"], y=stats["min"], mode="lines+markers", name="حداقل", line=dict(color="blue", width=3), marker=dict(size=8)))
 
-        y_min = annual_stats["min"].min() - 0.5
-        y_max = annual_stats["max"].max() + 0.5
-        dtick = 0.1  # فاصله برای دید بهتر
+        y_min, y_max = stats[['min','max']].min().min()-0.5, stats[['min','max']].max().max()+0.5
+        y_vals_fine = np.arange(np.floor(y_min), np.ceil(y_max)+0.01, 0.2)
+        y_vals_coarse = np.arange(-10, np.floor(y_min), 10).tolist() + np.arange(np.ceil(y_max)+1, 50, 10).tolist()
+        y_ticks = np.sort(np.concatenate([y_vals_coarse, y_vals_fine]))
 
         fig_line.update_layout(
             height=420,
             title=f"روند سالانه دما — {county}",
             xaxis_title="سال",
             yaxis_title="دما",
-            yaxis=dict(range=[y_min, y_max], dtick=dtick),
+            yaxis=dict(tickvals=y_ticks),
             legend_title_text="📌 توضیح رنگ‌ها",
-            legend=dict(
-                orientation="h",
-                yanchor="top",
-                y=-0.15,
-                xanchor="right",
-                x=1
-            )
+            legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="right", x=1)
         )
 
     st.plotly_chart(fig_line, use_container_width=True)
 
     # ---------------- HIST ----------------
     st.subheader("📊 توزیع دما")
-    fig_hist = px.histogram(filtered, x="Temperature", nbins=30,
-                            color_discrete_sequence=["orange"])
+    fig_hist = px.histogram(filtered, x="Temperature", nbins=30, color_discrete_sequence=["orange"])
     st.plotly_chart(fig_hist, use_container_width=True)
 
     # ---------------- BOX ----------------
     st.subheader("📊 نمودار جعبه‌ای")
-    fig_box = px.box(filtered, y="Temperature",
-                     color_discrete_sequence=["orange"])
+    fig_box = px.box(filtered, y="Temperature", color_discrete_sequence=["orange"])
     st.plotly_chart(fig_box, use_container_width=True)
 
 # ---------------- FOOTER ----------------
