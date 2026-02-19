@@ -76,6 +76,8 @@ filtered = df_long[
 ]
 # مرتب سازی زمانی (رفع خط خطی)
 filtered = filtered.sort_values("Date")
+filtered["Temperature"] = pd.to_numeric(filtered["Temperature"], errors="coerce")
+
 # ---------------- AVERAGE ----------------
 avg_temp = filtered["Temperature"].mean()
 
@@ -101,4 +103,5 @@ st.markdown("""
 📊 منبع داده: NASA POWER Dataset  
 🎓 پروژه دانشگاهی تحلیل اقلیم استان یزد  
 """)
+
 
