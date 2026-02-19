@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 
 st.set_page_config(layout="wide", page_title="🌡️ داشبورد دمای استان یزد")
 
-# ---------------- INTRO (RTL فقط برای متن خوش آمد) ----------------
+# ---------------- INTRO ----------------
 st.markdown("""
 <div style="direction: rtl; text-align: right; font-family: Tahoma; line-height: 2">
 
@@ -123,36 +123,24 @@ else:
     col3.plotly_chart(gauge(min_temp, "حداقل"), use_container_width=True)
 
     # ---------------- SMART TREND CHART ----------------
-    years_count = filtered["YEAR"].nunique()
     st.subheader("📈 روند دما")
 
-    if years_count == 1:
-        # ماهانه — ساده و تمیز
-        fig_line = px.line(
-            filtered,
-            x="Date",
-            y="Temperature",
-            title=f"روند ماهانه دما — {county}",
-            labels={"Temperature":"دما", "Date":"ماه"},
-            color_discrete_sequence=["orange"]
+    fig_line = px.line(
+        filtered,
+        x="Date",
+        y="Temperature",
+        title=f"روند دما — {county}",
+        labels={"Temperature":"دما", "Date":"تاریخ"},
+        color_discrete_sequence=["orange"]
+    )
+    fig_line.update_traces(mode="lines+markers", marker=dict(size=6))
+    fig_line.update_layout(
+        height=420,
+        xaxis=dict(
+            dtick="M1",          # یک ماه فاصله
+            tickformat="%b\n%Y"  # نمایش ماه و سال
         )
-        fig_line.update_traces(marker=dict(size=6))
-
-    else:
-        # سالانه — فقط میانگین
-        annual_avg = filtered.groupby("YEAR")["Temperature"].mean().reset_index()
-
-        fig_line = px.line(
-            annual_avg,
-            x="YEAR",
-            y="Temperature",
-            title=f"روند سالانه میانگین دما — {county}",
-            labels={"Temperature":"میانگین دما", "YEAR":"سال"},
-            color_discrete_sequence=["orange"]
-        )
-        fig_line.update_traces(marker=dict(size=8))
-
-    fig_line.update_layout(height=420)
+    )
     st.plotly_chart(fig_line, use_container_width=True)
 
     # ---------------- HIST ----------------
