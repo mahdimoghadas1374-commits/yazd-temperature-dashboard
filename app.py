@@ -1,67 +1,102 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Yazd Climate Dashboard", layout="wide")
+st.set_page_config(layout="wide")
 
-st.title("🌡️ Yazd Province Temperature Dashboard")
+# ---------------- TITLE ----------------
+st.title("🌡️ داشبورد تحلیل دمای شهرستان‌های استان یزد")
 
-# ---------- Load Data ----------
+# ---------------- DESCRIPTION ----------------
+st.markdown("""
+### 📌 هدف این سامانه
+
+این داشبورد برای **تحلیل و پایش تغییرات دمایی شهرستان‌های استان یزد** طراحی شده است.
+
+کاربردها:
+
+- بررسی روند تغییرات دما در سال‌های مختلف  
+- مقایسه دمای شهرستان‌ها  
+- تحلیل میانگین دما در بازه زمانی دلخواه  
+- کمک به مطالعات اقلیمی و زیست‌محیطی  
+
+---
+
+### 🧭 نحوه استفاده
+
+1️⃣ از سمت چپ، **شهرستان مورد نظر** را انتخاب کنید.  
+2️⃣ بازه سال مورد نظر را مشخص کنید.  
+3️⃣ نمودار تغییرات دما نمایش داده می‌شود.  
+4️⃣ میانگین دما در بازه انتخابی نیز محاسبه خواهد شد.
+
+---
+""")
+
+# ---------------- LOAD DATA ----------------
 df = pd.read_csv("yazd Counties_temperature.csv")
 
-df = df[df["PARAMETER"] == "T2M"]
+# تبدیل داده ماهانه به طولی
+months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"]
 
-months = ["JAN","FEB","MAR","APR","MAY","JUN",
-          "JUL","AUG","SEP","OCT","NOV","DEC"]
-
-# ---------- Sidebar ----------
-st.sidebar.header("Filters")
-
-county = st.sidebar.selectbox("Select County", df["County"].unique())
-
-year = st.sidebar.selectbox("Select Year", sorted(df["YEAR"].unique()))
-
-# ---------- Filter Data ----------
-df_filtered = df[(df["County"] == county) & (df["YEAR"] == year)]
-
-df_long = df_filtered.melt(
-    id_vars=["YEAR"],
+df_long = df.melt(
+    id_vars=["County","YEAR"],
     value_vars=months,
     var_name="Month",
     value_name="Temperature"
 )
 
-# مرتب سازی ماه‌ها
-month_order = months
-df_long["Month"] = pd.Categorical(df_long["Month"], categories=month_order, ordered=True)
-df_long = df_long.sort_values("Month")
+# تبدیل نام ماه به عدد
+month_map = {m:i+1 for i,m in enumerate(months)}
+df_long["Month_Num"] = df_long["Month"].map(month_map)
 
-# ---------- Metrics ----------
-col1, col2, col3 = st.columns(3)
-
-col1.metric("Average Temp", round(df_long["Temperature"].mean(),2))
-col2.metric("Max Temp", round(df_long["Temperature"].max(),2))
-col3.metric("Min Temp", round(df_long["Temperature"].min(),2))
-
-st.divider()
-
-# ---------- Chart ----------
-fig = px.line(
-    df_long,
-    x="Month",
-    y="Temperature",
-    markers=True,
-    title=f"Monthly Temperature Trend — {county} ({year})",
+df_long["Date"] = pd.to_datetime(
+    df_long["YEAR"].astype(str) + "-" + df_long["Month_Num"].astype(str)
 )
 
-fig.update_layout(
-    xaxis_title="Month",
-    yaxis_title="Temperature (°C)",
-    template="plotly_dark"
+# ---------------- SIDEBAR ----------------
+st.sidebar.header("🎛️ تنظیمات")
+
+county = st.sidebar.selectbox(
+    "انتخاب شهرستان",
+    df_long["County"].unique()
+)
+
+year_range = st.sidebar.slider(
+    "بازه سال",
+    int(df_long["YEAR"].min()),
+    int(df_long["YEAR"].max()),
+    (2015, 2024)
+)
+
+# ---------------- FILTER ----------------
+filtered = df_long[
+    (df_long["County"] == county) &
+    (df_long["YEAR"] >= year_range[0]) &
+    (df_long["YEAR"] <= year_range[1])
+]
+
+# ---------------- AVERAGE ----------------
+avg_temp = filtered["Temperature"].mean()
+
+st.metric(
+    "میانگین دما در بازه انتخابی",
+    f"{avg_temp:.2f} °C"
+)
+
+# ---------------- CHART ----------------
+fig = px.line(
+    filtered,
+    x="Date",
+    y="Temperature",
+    title=f"روند تغییرات دمای {county}",
+    labels={"Temperature":"دما (°C)", "Date":"زمان"}
 )
 
 st.plotly_chart(fig, use_container_width=True)
 
-# ---------- Table ----------
-st.subheader("📊 Data Table")
-st.dataframe(df_long, use_container_width=True)
+# ---------------- FOOTER ----------------
+st.markdown("""
+---
+📊 منبع داده: NASA POWER Dataset  
+🎓 پروژه دانشگاهی تحلیل اقلیم استان یزد  
+""")
