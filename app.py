@@ -88,7 +88,8 @@ if show_data:
     st.subheader("📋 جدول اطلاعات اولیه")
     st.dataframe(
         df_long.sort_values(["YEAR","Month_Num","County"]).reset_index(drop=True),
-        use_container_width=True
+        use_container_width=True,
+        height=700  # حداکثر ارتفاع مناسب صفحه
     )
 
 else:
@@ -156,13 +157,17 @@ else:
             marker=dict(size=8)
         ))
 
+        y_min = monthly_stats["min"].min() - 0.5
+        y_max = monthly_stats["max"].max() + 0.5
+        dtick = 0.1  # فاصله برای دید بهتر
+
         fig_line.update_layout(
             height=420,
             title=f"روند ماهانه دما — {county}",
             xaxis_title="ماه",
             yaxis_title="دما",
             xaxis=dict(tickmode="array", tickvals=list(range(1,13)), ticktext=months),
-            yaxis=dict(tick0=-10, dtick=1),  # 1 درجه 1 درجه
+            yaxis=dict(range=[y_min, y_max], dtick=dtick),
             legend_title_text="📌 توضیح رنگ‌ها",
             legend=dict(
                 orientation="h",
@@ -202,13 +207,16 @@ else:
             marker=dict(size=8)
         ))
 
-        # محور عمودی با رزولوشن 1 درجه‌ای
+        y_min = annual_stats["min"].min() - 0.5
+        y_max = annual_stats["max"].max() + 0.5
+        dtick = 0.1  # فاصله برای دید بهتر
+
         fig_line.update_layout(
             height=420,
             title=f"روند سالانه دما — {county}",
             xaxis_title="سال",
             yaxis_title="دما",
-            yaxis=dict(tick0=-10, dtick=1, range=[-10,40]),
+            yaxis=dict(range=[y_min, y_max], dtick=dtick),
             legend_title_text="📌 توضیح رنگ‌ها",
             legend=dict(
                 orientation="h",
