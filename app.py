@@ -5,12 +5,32 @@ import plotly.graph_objects as go
 
 st.set_page_config(layout="wide", page_title="🌡️ داشبورد دمای استان یزد")
 
+# ---------------- RTL + FONT ----------------
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
+
+html, body, [class*="css"] {
+    direction: rtl;
+    text-align: right;
+    font-family: "Vazirmatn", sans-serif;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ---------------- INTRO ----------------
 st.markdown("""
-# 🌡️ خوش آمدید به داشبورد دمای استان یزد
-در این داشبورد می‌توانید روند دما، شاخص‌ها و توزیع دمای شهرستان‌های استان یزد را مشاهده کنید.
-از سایدبار می‌توانید شهرستان و بازه سال مورد نظر خود را انتخاب کنید.
-همچنین می‌توانید اطلاعات اولیه ماهانه را به صورت جدول کامل مشاهده کنید.
+# 🌡️ سامانه تحلیل دمای استان یزد
+
+این داشبورد جهت تحلیل روند تغییرات دمایی شهرستان‌های استان یزد طراحی شده است.
+
+امکانات:
+- مشاهده شاخص‌های دمایی
+- بررسی روند تغییرات دما
+- تحلیل توزیع آماری داده‌ها
+- دسترسی به داده‌های اولیه ماهانه
+
+از بخش تنظیمات سمت راست، شهرستان و بازه زمانی مورد نظر خود را انتخاب نمایید.
 ---
 """)
 
@@ -33,7 +53,7 @@ df_long["Date"] = pd.to_datetime(
 df_long["Temperature"] = pd.to_numeric(df_long["Temperature"], errors="coerce")
 df_long = df_long.dropna(subset=["Temperature"])
 
-# ---------------- STANDARDIZE CITY NAME ----------------
+# ---------------- CITY MAP ----------------
 city_map = {
     "Yazd":"یزد",
     "Ardakan":"اردکان",
@@ -50,7 +70,6 @@ df_long["County"] = df_long["County"].map(city_map)
 # ---------------- SIDEBAR ----------------
 st.sidebar.markdown("## 🎛️ تنظیمات داشبورد")
 
-# انتخاب بازه سال
 year_min, year_max = st.sidebar.slider(
     "📅 بازه سال",
     int(df_long["YEAR"].min()),
@@ -58,7 +77,6 @@ year_min, year_max = st.sidebar.slider(
     (2015, 2024)
 )
 
-# انتخاب شهرستان
 counties = list(city_map.values())
 if "selected_county" not in st.session_state:
     st.session_state.selected_county = "یزد"
@@ -72,23 +90,23 @@ for i in range(0, len(counties), cols_per_row):
 
 county = st.session_state.selected_county
 
-# ---------------- SHOW RAW DATA OPTION ----------------
 show_data = st.sidebar.checkbox("📋 اطلاعات اولیه")
 
+# ---------------- SHOW RAW DATA ----------------
 if show_data:
     st.subheader("📋 جدول اطلاعات اولیه")
     st.dataframe(
-        df_long.sort_values(["YEAR", "Month_Num", "County"]).reset_index(drop=True),
+        df_long.sort_values(["YEAR","Month_Num","County"]).reset_index(drop=True),
         use_container_width=True
     )
+
 else:
-    # ---------------- FILTER DATA ----------------
+    # ---------------- FILTER ----------------
     filtered = df_long[
         (df_long["County"] == county) &
         (df_long["YEAR"] >= year_min) &
         (df_long["YEAR"] <= year_max)
-    ].copy()
-    filtered = filtered.sort_values("Date")
+    ].copy().sort_values("Date")
 
     # ---------------- METRICS ----------------
     avg_temp = filtered["Temperature"].mean()
@@ -98,65 +116,67 @@ else:
     st.subheader(f"📊 شاخص‌های دمای شهرستان {county}")
     col1, col2, col3 = st.columns(3)
 
-    def gauge(value, title, max_range=50):
+    def gauge(value, title):
         fig = go.Figure(go.Indicator(
             mode="gauge+number",
             value=value,
             title={'text': title},
-            gauge={'axis': {'range':[0, max(max_range, value+5)]},
-                   'bar': {'color':'orange'},
-                   'steps':[dict(range=[0, 20], color='lightblue'),
-                            dict(range=[20, 35], color='yellow'),
-                            dict(range=[35, 50], color='red')]}
-
+            gauge={'axis': {'range':[0, 50]},
+                   'bar': {'color':'orange'}}
         ))
-        fig.update_layout(height=300)
+        fig.update_layout(height=280)
         return fig
 
-    col1.plotly_chart(gauge(avg_temp, "میانگین دما (°C)"), use_container_width=True)
-    col2.plotly_chart(gauge(max_temp, "حداکثر دما (°C)"), use_container_width=True)
-    col3.plotly_chart(gauge(min_temp, "حداقل دما (°C)"), use_container_width=True)
+    col1.plotly_chart(gauge(avg_temp, "میانگین"), use_container_width=True)
+    col2.plotly_chart(gauge(max_temp, "حداکثر"), use_container_width=True)
+    col3.plotly_chart(gauge(min_temp, "حداقل"), use_container_width=True)
 
-    # ---------------- LINE CHART (میانگین سالانه) ----------------
-    st.subheader(f"📈 روند دما در {county} (میانگین سالانه)")
-    annual_avg = filtered.groupby("YEAR")["Temperature"].mean().reset_index()
+    # ---------------- SMART LINE CHART ----------------
+    years_count = filtered["YEAR"].nunique()
 
-    fig_line = px.line(
-        annual_avg,
-        x='YEAR',
-        y='Temperature',
-        labels={"Temperature":"میانگین دما (°C)", "YEAR":"سال"},
-        title=f"روند میانگین دمای شهرستان {county} (سالانه)",
-        color_discrete_sequence=["orange"],
-        line_shape='spline'
-    )
-    fig_line.update_traces(mode='lines+markers')
-    fig_line.update_layout(height=400)
+    st.subheader("📈 روند دما")
+
+    if years_count == 1:
+        # حالت ماهانه
+        fig_line = px.line(
+            filtered,
+            x="Date",
+            y="Temperature",
+            title=f"روند ماهانه دما — {county}",
+            labels={"Temperature":"دما", "Date":"ماه"},
+            color_discrete_sequence=["orange"],
+            line_shape="spline"
+        )
+    else:
+        # حالت سالانه
+        annual_avg = filtered.groupby("YEAR")["Temperature"].mean().reset_index()
+
+        fig_line = px.line(
+            annual_avg,
+            x="YEAR",
+            y="Temperature",
+            title=f"روند سالانه دما — {county}",
+            labels={"Temperature":"میانگین دما", "YEAR":"سال"},
+            color_discrete_sequence=["orange"],
+            line_shape="spline"
+        )
+
+    fig_line.update_traces(mode="lines+markers")
+    fig_line.update_layout(height=420)
     st.plotly_chart(fig_line, use_container_width=True)
 
-    # ---------------- HISTOGRAM ----------------
+    # ---------------- HIST ----------------
     st.subheader("📊 توزیع دما")
     fig_hist = px.histogram(
-        filtered,
-        x="Temperature",
-        nbins=30,
-        template="plotly_white",
-        labels={"Temperature":"دما (°C)"},
-        color_discrete_sequence=["orange"],
-        height=400
+        filtered, x="Temperature", nbins=30,
+        color_discrete_sequence=["orange"]
     )
     st.plotly_chart(fig_hist, use_container_width=True)
 
-    # ---------------- BOX PLOT ----------------
-    st.subheader("📊 نمودار جعبه‌ای دما")
-    fig_box = px.box(
-        filtered,
-        y="Temperature",
-        template="plotly_white",
-        color_discrete_sequence=["orange"],
-        height=400
-    )
+    # ---------------- BOX ----------------
+    st.subheader("📊 نمودار جعبه‌ای")
+    fig_box = px.box(filtered, y="Temperature", color_discrete_sequence=["orange"])
     st.plotly_chart(fig_box, use_container_width=True)
 
 # ---------------- FOOTER ----------------
-st.markdown("---\n📊 منبع داده: NASA POWER Dataset \n🎓 پروژه تحلیل اقلیم استان یزد")
+st.markdown("---\n📊 NASA POWER Dataset")
