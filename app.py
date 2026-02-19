@@ -5,34 +5,25 @@ import plotly.graph_objects as go
 
 st.set_page_config(layout="wide", page_title="🌡️ داشبورد دمای استان یزد")
 
-# ---------------- RTL + FONT ----------------
+# ---------------- INTRO (RTL فقط برای متن خوش آمد) ----------------
 st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
+<div style="direction: rtl; text-align: right; font-family: Tahoma; line-height: 2">
 
-html, body, [class*="css"] {
-    direction: rtl;
-    text-align: right;
-    font-family: "Vazirmatn", sans-serif;
-}
-</style>
-""", unsafe_allow_html=True)
+<h2>🌡️ سامانه تحلیل دمای استان یزد</h2>
 
-# ---------------- INTRO ----------------
-st.markdown("""
-# 🌡️ سامانه تحلیل دمای استان یزد
+این داشبورد جهت بررسی روند تغییرات دمایی شهرستان‌های استان یزد طراحی شده است.
 
-این داشبورد جهت تحلیل روند تغییرات دمایی شهرستان‌های استان یزد طراحی شده است.
-
-امکانات:
-- مشاهده شاخص‌های دمایی
-- بررسی روند تغییرات دما
-- تحلیل توزیع آماری داده‌ها
-- دسترسی به داده‌های اولیه ماهانه
+امکانات سامانه:
+<br>• مشاهده شاخص‌های دمایی
+<br>• تحلیل روند تغییرات دما
+<br>• بررسی توزیع آماری داده‌ها
+<br>• دسترسی به داده‌های اولیه
 
 از بخش تنظیمات سمت راست، شهرستان و بازه زمانی مورد نظر خود را انتخاب نمایید.
----
-""")
+
+</div>
+<hr>
+""", unsafe_allow_html=True)
 
 # ---------------- LOAD DATA ----------------
 df = pd.read_csv("yazd Counties_temperature.csv")
@@ -92,7 +83,7 @@ county = st.session_state.selected_county
 
 show_data = st.sidebar.checkbox("📋 اطلاعات اولیه")
 
-# ---------------- SHOW RAW DATA ----------------
+# ---------------- RAW TABLE ----------------
 if show_data:
     st.subheader("📋 جدول اطلاعات اولیه")
     st.dataframe(
@@ -131,51 +122,49 @@ else:
     col2.plotly_chart(gauge(max_temp, "حداکثر"), use_container_width=True)
     col3.plotly_chart(gauge(min_temp, "حداقل"), use_container_width=True)
 
-    # ---------------- SMART LINE CHART ----------------
+    # ---------------- SMART TREND CHART ----------------
     years_count = filtered["YEAR"].nunique()
-
     st.subheader("📈 روند دما")
 
     if years_count == 1:
-        # حالت ماهانه
+        # ماهانه — ساده و تمیز
         fig_line = px.line(
             filtered,
             x="Date",
             y="Temperature",
             title=f"روند ماهانه دما — {county}",
             labels={"Temperature":"دما", "Date":"ماه"},
-            color_discrete_sequence=["orange"],
-            line_shape="spline"
+            color_discrete_sequence=["orange"]
         )
+        fig_line.update_traces(marker=dict(size=6))
+
     else:
-        # حالت سالانه
+        # سالانه — فقط میانگین
         annual_avg = filtered.groupby("YEAR")["Temperature"].mean().reset_index()
 
         fig_line = px.line(
             annual_avg,
             x="YEAR",
             y="Temperature",
-            title=f"روند سالانه دما — {county}",
+            title=f"روند سالانه میانگین دما — {county}",
             labels={"Temperature":"میانگین دما", "YEAR":"سال"},
-            color_discrete_sequence=["orange"],
-            line_shape="spline"
+            color_discrete_sequence=["orange"]
         )
+        fig_line.update_traces(marker=dict(size=8))
 
-    fig_line.update_traces(mode="lines+markers")
     fig_line.update_layout(height=420)
     st.plotly_chart(fig_line, use_container_width=True)
 
     # ---------------- HIST ----------------
     st.subheader("📊 توزیع دما")
-    fig_hist = px.histogram(
-        filtered, x="Temperature", nbins=30,
-        color_discrete_sequence=["orange"]
-    )
+    fig_hist = px.histogram(filtered, x="Temperature", nbins=30,
+                            color_discrete_sequence=["orange"])
     st.plotly_chart(fig_hist, use_container_width=True)
 
     # ---------------- BOX ----------------
     st.subheader("📊 نمودار جعبه‌ای")
-    fig_box = px.box(filtered, y="Temperature", color_discrete_sequence=["orange"])
+    fig_box = px.box(filtered, y="Temperature",
+                     color_discrete_sequence=["orange"])
     st.plotly_chart(fig_box, use_container_width=True)
 
 # ---------------- FOOTER ----------------
