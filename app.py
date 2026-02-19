@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 # ---------------- CONFIG ----------------
 st.set_page_config(layout="wide", page_title="🌡️ داشبورد دمای شهرستان‌های یزد")
@@ -57,16 +58,48 @@ else:
     filtered = filtered.sort_values("Date")
     x_axis = "Date"
 
-# ---------------- METRICS ----------------
+# ---------------- CALCULATE METRICS ----------------
 avg_temp = filtered["Temperature"].mean()
 max_temp = filtered["Temperature"].max()
 min_temp = filtered["Temperature"].min()
 
+# ---------------- LAYOUT ----------------
 st.subheader(f"📊 شاخص‌های دمای شهرستان {county}")
 col1, col2, col3 = st.columns(3)
-col1.metric("میانگین دما", f"{avg_temp:.2f} °C")
-col2.metric("بیشترین دما", f"{max_temp:.2f} °C")
-col3.metric("کمترین دما", f"{min_temp:.2f} °C")
+
+# گیج میانگین
+fig_gauge_avg = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=avg_temp,
+    title={'text': "میانگین دما (°C)"},
+    gauge={'axis': {'range': [0, max(50, max_temp)]},
+           'bar': {'color': "orange"},
+           'steps': [
+               {'range': [0, 20], 'color': "lightblue"},
+               {'range': [20, 35], 'color': "yellow"},
+               {'range': [35, 50], 'color': "red"}]}
+))
+col1.plotly_chart(fig_gauge_avg, use_container_width=True)
+
+# گیج بیشینه
+fig_gauge_max = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=max_temp,
+    title={'text': "بیشترین دما (°C)"},
+    gauge={'axis': {'range': [0, max(50, max_temp)]},
+           'bar': {'color': "red"}}
+))
+col2.plotly_chart(fig_gauge_max, use_container_width=True)
+
+# گیج کمینه
+fig_gauge_min = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=min_temp,
+    title={'text': "کمترین دما (°C)"},
+    gauge={'axis': {'range': [0, max(50, max_temp)]},
+           'bar': {'color': "blue"}}
+))
+col3.plotly_chart(fig_gauge_min, use_container_width=True)
 
 # ---------------- LINE CHART ----------------
 fig_line = px.line(
@@ -79,7 +112,6 @@ fig_line = px.line(
     markers=True,
     template="plotly_dark"
 )
-
 fig_line.update_layout(
     xaxis_tickformat="%Y" if display_mode=="yearly" else "%b %Y",
     height=400
@@ -105,7 +137,7 @@ fig_box = px.box(
     height=400
 )
 
-# ---------------- LAYOUT ----------------
+# ---------------- DISPLAY CHARTS ----------------
 st.subheader(f"📊 نمودارها برای شهرستان {county}")
 colL, colR = st.columns(2)
 
