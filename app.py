@@ -165,10 +165,10 @@ else:
             legend_title_text="📌 توضیح رنگ‌ها",
             legend=dict(
                 orientation="h",
-                yanchor="bottom",
-                y=-0.25,
-                xanchor="center",
-                x=0.5
+                yanchor="top",
+                y=-0.3,      
+                xanchor="right",
+                x=1
             )
         )
         
@@ -202,18 +202,23 @@ else:
             marker=dict(size=8)
         ))
 
+        # تنظیم محور عمودی برای رزولوشن بهتر
+        y_min = annual_stats["min"].min() - 2
+        y_max = annual_stats["max"].max() + 2
+
         fig_line.update_layout(
             height=420,
             title=f"روند سالانه دما — {county}",
             xaxis_title="سال",
             yaxis_title="دما",
+            yaxis=dict(range=[y_min, y_max]),
             legend_title_text="📌 توضیح رنگ‌ها",
             legend=dict(
                 orientation="h",
-                yanchor="bottom",
-                y=-0.25,
-                xanchor="center",
-                x=0.5
+                yanchor="top",
+                y=-0.15,   # پایین‌تر و بدون تداخل
+                xanchor="right",
+                x=1
             )
         )
 
