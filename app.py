@@ -22,10 +22,13 @@ df_long["County"] = df_long["County"].replace({"یزد":"Yazd", "Yazd":"Yazd"})
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.markdown("## 🎛️ Dashboard Settings")
-year_min, year_max = st.sidebar.slider("📅 Year Range",
-                                       int(df_long["YEAR"].min()),
-                                       int(df_long["YEAR"].max()),
-                                       (2015, 2024))
+year_min, year_max = st.sidebar.slider(
+    "📅 Year Range",
+    int(df_long["YEAR"].min()),
+    int(df_long["YEAR"].max()),
+    (2015, 2024)
+)
+
 counties = df_long["County"].unique().tolist()
 if "Yazd" in counties:
     counties.remove("Yazd")
@@ -43,9 +46,11 @@ for i in range(0, len(counties), cols_per_row):
 county = st.session_state.selected_county
 
 # ---------------- FILTER DATA ----------------
-filtered = df_long[(df_long["County"] == county) &
-                   (df_long["YEAR"] >= year_min) &
-                   (df_long["YEAR"] <= year_max)].copy()
+filtered = df_long[
+    (df_long["County"] == county) &
+    (df_long["YEAR"] >= year_min) &
+    (df_long["YEAR"] <= year_max)
+].copy()
 filtered = filtered.sort_values("Date")
 
 # ---------------- METRICS ----------------
@@ -76,15 +81,41 @@ col3.plotly_chart(gauge(min_temp, "Min Temp (°C)"), use_container_width=True)
 
 # ---------------- LINE CHART ----------------
 st.subheader(f"📈 Temperature Trend for {county}")
-fig_line = px.line(filtered, x='Date', y='Temperature',
-                   labels={"Temperature":"Temp (°C)", "Date":"Date"},
-                   title=f"Temperature Trend - {county}",
-                   color_discrete_sequence=["orange"])
+fig_line = px.line(
+    filtered,
+    x='Date',
+    y='Temperature',
+    labels={"Temperature":"Temp (°C)", "Date":"Date"},
+    title=f"Temperature Trend - {county}",
+    color_discrete_sequence=["orange"]
+)
 fig_line.update_traces(mode='lines+markers')
 fig_line.update_layout(height=400)
 st.plotly_chart(fig_line, use_container_width=True)
 
 # ---------------- HISTOGRAM ----------------
 st.subheader("📊 Temperature Distribution")
-fig_hist = px.histogram(filtered, x="Temperature", y=None, nbins=30,
-                        template="plotly_white",
+fig_hist = px.histogram(
+    filtered,
+    x="Temperature",
+    nbins=30,
+    template="plotly_white",
+    labels={"Temperature":"Temp (°C)"},
+    color_discrete_sequence=["orange"],
+    height=400
+)
+st.plotly_chart(fig_hist, use_container_width=True)
+
+# ---------------- BOX PLOT ----------------
+st.subheader("📊 Temperature Boxplot")
+fig_box = px.box(
+    filtered,
+    y="Temperature",
+    template="plotly_white",
+    color_discrete_sequence=["orange"],
+    height=400
+)
+st.plotly_chart(fig_box, use_container_width=True)
+
+# ---------------- FOOTER ----------------
+st.markdown("---\n📊 Data Source: NASA POWER Dataset  \n🎓 Yazd Climate Analysis Project")
