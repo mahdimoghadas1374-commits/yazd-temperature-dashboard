@@ -3,10 +3,11 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
+import time
 
 # ---------------- CONFIG ----------------
-st.set_page_config(layout="wide", page_title="🌡️ داشبورد دمای شهرستان‌های یزد")
-st.title("🌡️ داشبورد تحلیل دمای شهرستان‌های استان یزد")
+st.set_page_config(layout="wide", page_title="🌡️ Yazd Temperature Dashboard")
+st.title("🌡️ Yazd Province Temperature Dashboard")
 
 # ---------------- LOAD DATA ----------------
 df = pd.read_csv("yazd Counties_temperature.csv")
@@ -20,29 +21,29 @@ df_long["Temperature"] = pd.to_numeric(df_long["Temperature"], errors="coerce")
 df_long = df_long.dropna(subset=["Temperature"])
 
 # ---------------- STANDARDIZE CITY NAME ----------------
-df_long["County"] = df_long["County"].replace({"Yazd":"یزد"})
+df_long["County"] = df_long["County"].replace({"یزد":"Yazd", "Yazd":"Yazd"})
 
 # ---------------- SIDEBAR ----------------
-st.sidebar.markdown("## 🎛️ تنظیمات داشبورد")
-st.sidebar.markdown("انتخاب شهرستان و بازه سال برای تحلیل داده‌ها")
+st.sidebar.markdown("## 🎛️ Dashboard Settings")
+st.sidebar.markdown("Select county and year range for analysis")
 
 # ---------- YEAR SLIDER ----------
-year_min, year_max = st.sidebar.slider("📅 بازه سال",
+year_min, year_max = st.sidebar.slider("📅 Year Range",
                                        int(df_long["YEAR"].min()),
                                        int(df_long["YEAR"].max()),
                                        (2015, 2024),
-                                       help="سال شروع و پایان بازه انتخابی")
+                                       help="Select start and end year")
 
 # ---------- COUNTY BUTTONS INLINE ----------
-st.sidebar.markdown("🏙️ انتخاب شهرستان (با کلیک روی دکمه)")
+st.sidebar.markdown("🏙️ Select County (Click button)")
 
 counties = df_long["County"].unique().tolist()
-if "یزد" in counties:
-    counties.remove("یزد")
-counties = ["یزد"] + list(counties)
+if "Yazd" in counties:
+    counties.remove("Yazd")
+counties = ["Yazd"] + list(counties)
 
 if "selected_county" not in st.session_state:
-    st.session_state.selected_county = "یزد"
+    st.session_state.selected_county = "Yazd"
 
 cols_per_row = 3
 for i in range(0, len(counties), cols_per_row):
@@ -84,85 +85,73 @@ def temp_color(val):
         return "red"
 
 # ---------------- GAUGES ----------------
-st.subheader(f"📊 شاخص‌های دمای شهرستان {county}")
+st.subheader(f"📊 Temperature Indicators for {county}")
 col1, col2, col3 = st.columns(3)
 
-def gauge_figure(value, title):
-    color = temp_color(value)
-    steps = [dict(range=[0, 20], color='lightblue'),
-             dict(range=[20, 35], color='yellow'),
-             dict(range=[35, 50], color='red')]
+def animated_gauge(value, title):
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
-        value=0,  # شروع از صفر
+        value=0,
         title={'text': title},
         gauge={'axis': {'range':[0, max(50, max_temp)]},
-               'bar': {'color': color},
-               'steps': steps}
+               'bar': {'color':'orange'},
+               'steps':[dict(range=[0, 20], color='lightblue'),
+                        dict(range=[20, 35], color='yellow'),
+                        dict(range=[35, 50], color='red')]}
     ))
-    fig.update_traces(value=value)  # به مقدار واقعی حرکت کنه
-    fig.update_layout(transition={'duration':800, 'easing':'cubic-in-out'})
+    fig.update_layout(height=300)
+    # Animation loop
+    for v in np.linspace(0, value, 30):
+        fig.update_traces(value=v)
+        col1.plotly_chart(fig, use_container_width=True)
+        time.sleep(0.02)
+    fig.update_traces(value=value)
     return fig
 
-col1.plotly_chart(gauge_figure(avg_temp, "میانگین دما (°C)"), use_container_width=True)
-col1.markdown(f"📆 بازه: {year_min} – {year_max}")
-
-col2.plotly_chart(gauge_figure(max_temp, "بیشترین دما (°C)"), use_container_width=True)
-col2.markdown(f"📆 بازه: {year_min} – {year_max}")
-
-col3.plotly_chart(gauge_figure(min_temp, "کمترین دما (°C)"), use_container_width=True)
-col3.markdown(f"📆 بازه: {year_min} – {year_max}")
+# Draw gauges (once with animation)
+col1.plotly_chart(animated_gauge(avg_temp, "Average Temp (°C)"), use_container_width=True)
+col2.plotly_chart(animated_gauge(max_temp, "Max Temp (°C)"), use_container_width=True)
+col3.plotly_chart(animated_gauge(min_temp, "Min Temp (°C)"), use_container_width=True)
 
 # ---------------- LINE CHART ANIMATION ----------------
+st.subheader(f"📈 Temperature Trend for {county}")
 x_vals = filtered[x_axis].tolist()
 y_vals = filtered["Temperature"].tolist()
 colors = [temp_color(v) for v in y_vals]
 
 fig_line = go.Figure()
+fig_line.add_trace(go.Scatter(x=[], y=[], mode='lines+markers',
+                              line=dict(color='orange', width=3),
+                              marker=dict(size=8)))
+
+line_chart = st.plotly_chart(fig_line, use_container_width=True)
+
+# Animate line
 for i in range(len(x_vals)):
-    fig_line.add_trace(go.Scatter(
-        x=x_vals[:i+1],
-        y=y_vals[:i+1],
-        mode='lines+markers',
-        line=dict(color=colors[i], width=3),
-        marker=dict(color=colors[i], size=8)
-    ))
-fig_line.update_layout(title=f"📈 روند دمای {county}",
-                       template="plotly_dark",
-                       xaxis_title="زمان",
-                       yaxis_title="دما (°C)",
-                       transition={'duration':800, 'easing':'cubic-in-out'},
-                       height=400)
-st.subheader(f"📊 نمودار دما برای شهرستان {county}")
-st.plotly_chart(fig_line, use_container_width=True)
+    fig_line.data[0].x = x_vals[:i+1]
+    fig_line.data[0].y = y_vals[:i+1]
+    fig_line.data[0].marker.color = colors[:i+1]
+    line_chart.plotly_chart(fig_line)
+    time.sleep(0.05)
 
 # ---------------- HISTOGRAM ----------------
+st.subheader("📊 Temperature Distribution")
 if len(filtered) > 0:
-    fig_hist = px.histogram(
-        filtered,
-        x="Temperature",
-        nbins=30,
-        template="plotly_white",
-        labels={"Temperature":"دما (°C)"},
-        color="Temperature",
-        color_continuous_scale=px.colors.sequential.Viridis,
-        height=400
-    )
-    fig_hist.update_layout(transition={'duration':800, 'easing':'cubic-in-out'})
+    fig_hist = px.histogram(filtered, x="Temperature", nbins=30,
+                            template="plotly_white",
+                            labels={"Temperature":"Temp (°C)"},
+                            color_discrete_sequence=["orange"],
+                            height=400)
+    st.plotly_chart(fig_hist, use_container_width=True)
 
 # ---------------- BOX PLOT ----------------
+st.subheader("📊 Temperature Boxplot")
 if len(filtered) > 0:
-    fig_box = px.box(filtered, y="Temperature", template="plotly_white",
-                     color="Temperature", color_discrete_sequence=["blue","yellow","red"], height=400)
-    fig_box.update_layout(transition={'duration':800, 'easing':'cubic-in-out'})
-
-colL, colR = st.columns(2)
-with colL:
-    st.plotly_chart(fig_line, use_container_width=True)
-with colR:
-    if len(filtered) > 0:
-        st.plotly_chart(fig_hist, use_container_width=True)
-        st.plotly_chart(fig_box, use_container_width=True)
+    fig_box = px.box(filtered, y="Temperature",
+                     template="plotly_white",
+                     color_discrete_sequence=["orange"],
+                     height=400)
+    st.plotly_chart(fig_box, use_container_width=True)
 
 # ---------------- FOOTER ----------------
-st.markdown("---\n📊 منبع داده: NASA POWER Dataset  \n🎓 پروژه دانشگاهی تحلیل اقلیم استان یزد")
+st.markdown("---\n📊 Data Source: NASA POWER Dataset  \n🎓 Yazd Climate Analysis Project")
