@@ -49,8 +49,9 @@ df_long = df.melt(
 month_map = {m:i+1 for i,m in enumerate(months)}
 df_long["Month_Num"] = df_long["Month"].map(month_map)
 
+# درست کردن ستون تاریخ (روز اول هر ماه)
 df_long["Date"] = pd.to_datetime(
-    df_long["YEAR"].astype(str) + "-" + df_long["Month_Num"].astype(str)
+    df_long["YEAR"].astype(str) + "-" + df_long["Month_Num"].astype(str) + "-01"
 )
 
 # ---------------- SIDEBAR ----------------
@@ -74,9 +75,11 @@ filtered = df_long[
     (df_long["YEAR"] >= year_range[0]) &
     (df_long["YEAR"] <= year_range[1])
 ]
-# مرتب سازی زمانی (رفع خط خطی)
-filtered = filtered.sort_values("Date")
+
+# مرتب سازی زمانی
 filtered["Temperature"] = pd.to_numeric(filtered["Temperature"], errors="coerce")
+filtered = filtered.dropna(subset=["Temperature"])
+filtered = filtered.sort_values("Date")
 
 # ---------------- AVERAGE ----------------
 avg_temp = filtered["Temperature"].mean()
@@ -91,8 +94,10 @@ fig = px.line(
     filtered,
     x="Date",
     y="Temperature",
+    color="YEAR",
     title=f"روند تغییرات دمای {county}",
-    labels={"Temperature":"دما (°C)", "Date":"زمان"}
+    labels={"Temperature":"دما (°C)", "Date":"زمان"},
+    markers=True
 )
 
 st.plotly_chart(fig, use_container_width=True)
@@ -103,5 +108,3 @@ st.markdown("""
 📊 منبع داده: NASA POWER Dataset  
 🎓 پروژه دانشگاهی تحلیل اقلیم استان یزد  
 """)
-
-
