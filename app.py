@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 import plotly.express as px
+import plotly.graph_objects as go
 
 st.set_page_config(layout="wide", page_title="🌡️ Yazd Temperature Dashboard")
 st.title("🌡️ Yazd Province Temperature Dashboard")
@@ -74,13 +74,19 @@ col1.plotly_chart(gauge(avg_temp, "Average Temp (°C)"), use_container_width=Tru
 col2.plotly_chart(gauge(max_temp, "Max Temp (°C)"), use_container_width=True)
 col3.plotly_chart(gauge(min_temp, "Min Temp (°C)"), use_container_width=True)
 
-# ---------------- LINE CHART ----------------
+# ---------------- LINE CHART ANIMATION ----------------
 st.subheader(f"📈 Temperature Trend for {county}")
-fig_line = px.line(filtered, x="Date", y="Temperature",
+
+# ایجاد یک ستون اضافی برای frame animation
+filtered['Frame'] = range(len(filtered))
+fig_line = px.line(filtered, x='Date', y='Temperature', 
                    labels={"Temperature":"Temp (°C)", "Date":"Date"},
-                   title=f"Temperature Trend - {county}")
-fig_line.update_traces(mode='lines+markers', line=dict(color='orange'))
-fig_line.update_layout(transition={'duration':800, 'easing':'cubic-in-out'}, height=400)
+                   title=f"Temperature Trend - {county}",
+                   color_discrete_sequence=["orange"],
+                   animation_frame='Frame')  # انیمیشن واقعی frame به frame
+
+fig_line.update_traces(mode='lines+markers')
+fig_line.update_layout(height=400, transition={'duration':500, 'easing':'linear'})
 st.plotly_chart(fig_line, use_container_width=True)
 
 # ---------------- HISTOGRAM ----------------
