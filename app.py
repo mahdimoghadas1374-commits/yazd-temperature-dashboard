@@ -124,23 +124,99 @@ else:
 
     # ---------------- SMART TREND CHART ----------------
     st.subheader("📈 روند دما")
+    years_count = filtered["YEAR"].nunique()
 
-    fig_line = px.line(
-        filtered,
-        x="Date",
-        y="Temperature",
-        title=f"روند دما — {county}",
-        labels={"Temperature":"دما", "Date":"تاریخ"},
-        color_discrete_sequence=["orange"]
-    )
-    fig_line.update_traces(mode="lines+markers", marker=dict(size=6))
-    fig_line.update_layout(
-        height=420,
-        xaxis=dict(
-            dtick="M1",          # یک ماه فاصله
-            tickformat="%b\n%Y"  # نمایش ماه و سال
+    if years_count == 1:
+        # ماهانه — میانگین، حداقل، حداکثر
+        monthly_stats = filtered.groupby("Month_Num")["Temperature"].agg(['mean','max','min']).reset_index()
+        fig_line = go.Figure()
+        
+        fig_line.add_trace(go.Scatter(
+            x=monthly_stats["Month_Num"],
+            y=monthly_stats["mean"],
+            mode="lines+markers",
+            name="میانگین",
+            line=dict(color="gold", width=3),
+            marker=dict(size=8)
+        ))
+        fig_line.add_trace(go.Scatter(
+            x=monthly_stats["Month_Num"],
+            y=monthly_stats["max"],
+            mode="lines+markers",
+            name="حداکثر",
+            line=dict(color="red", width=3),
+            marker=dict(size=8)
+        ))
+        fig_line.add_trace(go.Scatter(
+            x=monthly_stats["Month_Num"],
+            y=monthly_stats["min"],
+            mode="lines+markers",
+            name="حداقل",
+            line=dict(color="blue", width=3),
+            marker=dict(size=8)
+        ))
+
+        fig_line.update_layout(
+            height=420,
+            title=f"روند ماهانه دما — {county}",
+            xaxis_title="ماه",
+            yaxis_title="دما",
+            xaxis=dict(tickmode="array", tickvals=list(range(1,13)), ticktext=months),
+            legend_title_text="📌 توضیح رنگ‌ها",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.25,
+                xanchor="center",
+                x=0.5
+            )
         )
-    )
+        
+    else:
+        # سالانه — میانگین، حداقل، حداکثر
+        annual_stats = filtered.groupby("YEAR")["Temperature"].agg(['mean','max','min']).reset_index()
+        fig_line = go.Figure()
+        
+        fig_line.add_trace(go.Scatter(
+            x=annual_stats["YEAR"],
+            y=annual_stats["mean"],
+            mode="lines+markers",
+            name="میانگین",
+            line=dict(color="gold", width=3),
+            marker=dict(size=8)
+        ))
+        fig_line.add_trace(go.Scatter(
+            x=annual_stats["YEAR"],
+            y=annual_stats["max"],
+            mode="lines+markers",
+            name="حداکثر",
+            line=dict(color="red", width=3),
+            marker=dict(size=8)
+        ))
+        fig_line.add_trace(go.Scatter(
+            x=annual_stats["YEAR"],
+            y=annual_stats["min"],
+            mode="lines+markers",
+            name="حداقل",
+            line=dict(color="blue", width=3),
+            marker=dict(size=8)
+        ))
+
+        fig_line.update_layout(
+            height=420,
+            title=f"روند سالانه دما — {county}",
+            xaxis_title="سال",
+            yaxis_title="دما",
+            legend_title_text="📌 توضیح رنگ‌ها",
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=-0.25,
+                xanchor="center",
+                x=0.5
+            )
+        )
+
     st.plotly_chart(fig_line, use_container_width=True)
 
     # ---------------- HIST ----------------
