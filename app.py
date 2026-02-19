@@ -95,16 +95,21 @@ col1.plotly_chart(gauge(avg_temp, "میانگین دما (°C)"), use_container_
 col2.plotly_chart(gauge(max_temp, "حداکثر دما (°C)"), use_container_width=True)
 col3.plotly_chart(gauge(min_temp, "حداقل دما (°C)"), use_container_width=True)
 
-# ---------------- LINE CHART (میانگین سالانه) ----------------
-st.subheader(f"📈 روند دما در {county} (میانگین سالانه)")
-annual_avg = filtered.groupby("YEAR")["Temperature"].mean().reset_index()
+# ---------------- LINE CHART (ماهانه با میانگین متحرک 3 ماهه) ----------------
+st.subheader(f"📈 روند دما در {county} (ماهانه - میانگین متحرک 3 ماهه)")
+
+# مرتب‌سازی داده
+filtered_sorted = filtered.sort_values("Date").copy()
+
+# محاسبه میانگین متحرک 3 ماهه
+filtered_sorted["Temp_MA3"] = filtered_sorted["Temperature"].rolling(window=3, center=True).mean()
 
 fig_line = px.line(
-    annual_avg,
-    x='YEAR',
-    y='Temperature',
-    labels={"Temperature":"میانگین دما (°C)", "YEAR":"سال"},
-    title=f"روند میانگین دمای شهرستان {county} (سالانه)",
+    filtered_sorted,
+    x='Date',
+    y='Temp_MA3',
+    labels={"Temp_MA3":"میانگین دما (°C)", "Date":"تاریخ"},
+    title=f"روند دمای شهرستان {county} (میانگین متحرک 3 ماهه)",
     color_discrete_sequence=["orange"],
     line_shape='spline'
 )
