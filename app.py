@@ -29,14 +29,29 @@ df_long["Temperature"] = pd.to_numeric(df_long["Temperature"], errors="coerce")
 df_long = df_long.dropna(subset=["Temperature"])
 
 # ---------------- SIDEBAR ----------------
-st.sidebar.header("🎛️ تنظیمات")
-county = st.sidebar.selectbox("انتخاب شهرستان", df_long["County"].unique())
+st.sidebar.markdown("## 🎛️ تنظیمات داشبورد")
+st.sidebar.markdown("انتخاب شهرستان و بازه سال برای تحلیل داده‌ها")
+
+# ---------- YEAR SLIDER ----------
 year_min, year_max = st.sidebar.slider(
-    "بازه سال",
+    "📅 بازه سال",
     int(df_long["YEAR"].min()),
     int(df_long["YEAR"].max()),
-    (2015, 2024)
+    (2015, 2024),
+    help="سال شروع و پایان بازه انتخابی"
 )
+
+# ---------- COUNTY BUTTONS ----------
+st.sidebar.markdown("🏙️ انتخاب شهرستان (با کلیک روی دکمه)")
+counties = df_long["County"].unique()
+county = None
+for c in counties:
+    if st.sidebar.button(c):
+        county = c
+
+# اگر کاربر هیچ دکمه‌ای نزده، پیش‌فرض اولی
+if county is None:
+    county = counties[0]
 
 # ---------------- FILTER DATA ----------------
 filtered = df_long[
@@ -63,43 +78,50 @@ avg_temp = filtered["Temperature"].mean()
 max_temp = filtered["Temperature"].max()
 min_temp = filtered["Temperature"].min()
 
-# ---------------- LAYOUT ----------------
+# ---------------- METRICS + GAUGES ----------------
 st.subheader(f"📊 شاخص‌های دمای شهرستان {county}")
 col1, col2, col3 = st.columns(3)
 
-# گیج میانگین
+# Gauge میانگین
 fig_gauge_avg = go.Figure(go.Indicator(
-    mode="gauge+number",
+    mode="gauge+number+delta",
     value=avg_temp,
     title={'text': "میانگین دما (°C)"},
+    delta={'reference': 0, 'increasing': {'color': "orange"}},
     gauge={'axis': {'range': [0, max(50, max_temp)]},
            'bar': {'color': "orange"},
            'steps': [
                {'range': [0, 20], 'color': "lightblue"},
                {'range': [20, 35], 'color': "yellow"},
-               {'range': [35, 50], 'color': "red"}]}
+               {'range': [35, 50], 'color': "red"}]},
 ))
+fig_gauge_avg.update_layout(transition={'duration': 1000, 'easing': 'cubic-in-out'})
 col1.plotly_chart(fig_gauge_avg, use_container_width=True)
+col1.markdown(f"📆 بازه: {year_min} – {year_max}")
 
-# گیج بیشینه
+# Gauge بیشینه
 fig_gauge_max = go.Figure(go.Indicator(
     mode="gauge+number",
     value=max_temp,
     title={'text': "بیشترین دما (°C)"},
     gauge={'axis': {'range': [0, max(50, max_temp)]},
-           'bar': {'color': "red"}}
+           'bar': {'color': "red"}},
 ))
+fig_gauge_max.update_layout(transition={'duration': 1000, 'easing': 'cubic-in-out'})
 col2.plotly_chart(fig_gauge_max, use_container_width=True)
+col2.markdown(f"📆 بازه: {year_min} – {year_max}")
 
-# گیج کمینه
+# Gauge کمینه
 fig_gauge_min = go.Figure(go.Indicator(
     mode="gauge+number",
     value=min_temp,
     title={'text': "کمترین دما (°C)"},
     gauge={'axis': {'range': [0, max(50, max_temp)]},
-           'bar': {'color': "blue"}}
+           'bar': {'color': "blue"}},
 ))
+fig_gauge_min.update_layout(transition={'duration': 1000, 'easing': 'cubic-in-out'})
 col3.plotly_chart(fig_gauge_min, use_container_width=True)
+col3.markdown(f"📆 بازه: {year_min} – {year_max}")
 
 # ---------------- LINE CHART ----------------
 fig_line = px.line(
@@ -114,7 +136,8 @@ fig_line = px.line(
 )
 fig_line.update_layout(
     xaxis_tickformat="%Y" if display_mode=="yearly" else "%b %Y",
-    height=400
+    height=400,
+    transition={'duration': 1000, 'easing': 'cubic-in-out'}
 )
 
 # ---------------- HISTOGRAM ----------------
@@ -127,6 +150,7 @@ fig_hist = px.histogram(
     template="plotly_white",
     height=400
 )
+fig_hist.update_layout(transition={'duration': 1000, 'easing': 'cubic-in-out'})
 
 # ---------------- BOX PLOT ----------------
 fig_box = px.box(
@@ -136,6 +160,7 @@ fig_box = px.box(
     template="plotly_white",
     height=400
 )
+fig_box.update_layout(transition={'duration': 1000, 'easing': 'cubic-in-out'})
 
 # ---------------- DISPLAY CHARTS ----------------
 st.subheader(f"📊 نمودارها برای شهرستان {county}")
