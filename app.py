@@ -74,7 +74,8 @@ filtered = df_long[
     (df_long["YEAR"] >= year_range[0]) &
     (df_long["YEAR"] <= year_range[1])
 ]
-
+# مرتب سازی زمانی (رفع خط خطی)
+filtered = filtered.sort_values("Date")
 # ---------------- AVERAGE ----------------
 avg_temp = filtered["Temperature"].mean()
 
@@ -100,3 +101,4 @@ st.markdown("""
 📊 منبع داده: NASA POWER Dataset  
 🎓 پروژه دانشگاهی تحلیل اقلیم استان یزد  
 """)
+
