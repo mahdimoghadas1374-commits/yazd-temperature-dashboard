@@ -59,7 +59,6 @@ counties = list(city_map.values())
 if "selected_county" not in st.session_state:
     st.session_state.selected_county = "یزد"
 
-# ستون‌های انتخاب شهرستان با ریسپانسیو
 cols_per_row = 3
 for i in range(0, len(counties), cols_per_row):
     cols = st.sidebar.columns(cols_per_row)
@@ -83,16 +82,13 @@ else:
                        (df_long["YEAR"]>=year_min) &
                        (df_long["YEAR"]<=year_max)].copy().sort_values("Date")
 
+    # ---------------- METRICS ----------------
     avg_temp = filtered["Temperature"].mean()
     max_temp = filtered["Temperature"].max()
     min_temp = filtered["Temperature"].min()
 
-    # ---------------- METRICS ----------------
     st.subheader(f"📊 شاخص‌های دمای شهرستان {county}")
-    if st.columns(1)[0].width < 500:  # موبایل: ستون عمودی
-        col1, col2, col3 = st.columns(1)
-    else:
-        col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
     def gauge(value, title):
         fig = go.Figure(go.Indicator(
