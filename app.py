@@ -126,10 +126,10 @@ else:
     st.subheader("📈 روند دما")
     years_count = filtered["YEAR"].nunique()
 
+    fig_line = go.Figure()
     if years_count == 1:
-        # ماهانه — میانگین، حداقل، حداکثر
+        # ماهانه
         monthly_stats = filtered.groupby("Month_Num")["Temperature"].agg(['mean','max','min']).reset_index()
-        fig_line = go.Figure()
         
         fig_line.add_trace(go.Scatter(
             x=monthly_stats["Month_Num"],
@@ -162,20 +162,20 @@ else:
             xaxis_title="ماه",
             yaxis_title="دما",
             xaxis=dict(tickmode="array", tickvals=list(range(1,13)), ticktext=months),
+            yaxis=dict(tick0=-10, dtick=1),  # 1 درجه 1 درجه
             legend_title_text="📌 توضیح رنگ‌ها",
             legend=dict(
                 orientation="h",
                 yanchor="top",
-                y=-0.3,      
+                y=-0.3,
                 xanchor="right",
                 x=1
             )
         )
         
     else:
-        # سالانه — میانگین، حداقل، حداکثر
+        # سالانه
         annual_stats = filtered.groupby("YEAR")["Temperature"].agg(['mean','max','min']).reset_index()
-        fig_line = go.Figure()
         
         fig_line.add_trace(go.Scatter(
             x=annual_stats["YEAR"],
@@ -202,21 +202,18 @@ else:
             marker=dict(size=8)
         ))
 
-        # تنظیم محور عمودی برای رزولوشن بهتر
-        y_min = annual_stats["min"].min() - 2
-        y_max = annual_stats["max"].max() + 2
-
+        # محور عمودی با رزولوشن 1 درجه‌ای
         fig_line.update_layout(
             height=420,
             title=f"روند سالانه دما — {county}",
             xaxis_title="سال",
             yaxis_title="دما",
-            yaxis=dict(range=[y_min, y_max]),
+            yaxis=dict(tick0=-10, dtick=1, range=[-10,40]),
             legend_title_text="📌 توضیح رنگ‌ها",
             legend=dict(
                 orientation="h",
                 yanchor="top",
-                y=-0.15,   # پایین‌تر و بدون تداخل
+                y=-0.15,
                 xanchor="right",
                 x=1
             )
